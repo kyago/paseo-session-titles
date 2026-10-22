@@ -28,8 +28,8 @@ async function messagesFor(sessionId: string | null | undefined, fallback: Messa
   return file ? await readTranscript(file) : fallback;
 }
 
-async function applyTitle(agentId: string, messages: Message[], current: string): Promise<string | null> {
-  const title = await generateTitle(titleContext(messages));
+async function applyTitle(agentId: string, messages: Message[], current: string, previous?: string): Promise<string | null> {
+  const title = await generateTitle(titleContext(messages, previous), previous);
   if (title && title !== current) await paseo(["agent", "update", agentId, "--name", title, "--json"]);
   return title;
 }
@@ -59,7 +59,7 @@ export default function contribute(server: PluginServerContext) {
       const action = onTurn(state, current, state.first);
       await store.save();
       if (action !== "retitle" || messages.length === 0) return;
-      const title = await applyTitle(agent.id, messages, current);
+      const title = await applyTitle(agent.id, messages, current, state.auto);
       if (title) {
         state.auto = title;
         await store.save();

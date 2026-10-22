@@ -55,3 +55,18 @@ test("sanitizeTitle trims model chatter", () => {
   assert.equal(sanitizeTitle("  "), null);
   assert.equal(sanitizeTitle("가".repeat(40))?.length, 30);
 });
+
+test("titleContext samples user messages across the session with the previous title", async () => {
+  const { titleContext } = await import("../server/titles.ts");
+  const messages = Array.from({ length: 60 }, (_, i) => [
+    { role: "user" as const, text: `요청 ${i} ${"가".repeat(200)}` },
+    { role: "assistant" as const, text: `답 ${i}` },
+  ]).flat();
+  const context = titleContext(messages, "로그인 리다이렉트 오류");
+  assert.ok(context.startsWith("[현재 제목]\n로그인 리다이렉트 오류\n"));
+  assert.ok(context.includes("1. 요청 0 ") && context.includes("요청 59 "));
+  assert.ok([28, 29, 30, 31, 32].some((i) => context.includes(`요청 ${i} `)), "middle of the session is sampled");
+  assert.ok(!context.includes("답 "));
+  assert.ok(context.length < 3600);
+  assert.ok(!titleContext(messages.slice(0, 4)).includes("[현재 제목]"));
+});

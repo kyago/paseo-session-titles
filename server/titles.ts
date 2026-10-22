@@ -36,12 +36,28 @@ export function onTurn(state: TitleState, currentTitle: string, firstPrompt: str
   return dueAt(state.turns) ? "retitle" : "skip";
 }
 
-export function titleContext(messages: Message[]): string {
-  const first = messages.find((message) => message.role === "user");
-  const recent = messages.slice(-6);
-  const clip = (text: string, max: number) => (text.length > max ? `${text.slice(0, max)}…` : text);
-  const lines = recent.map((message) => `${message.role === "user" ? "사용자" : "AI"}: ${clip(message.text.replace(/\s+/g, " "), 300)}`);
-  return `[첫 요청]\n${clip(first?.text ?? "", 600)}\n[최근 대화]\n${lines.join("\n")}`;
+const PER_MESSAGE = 150;
+const BUDGET = 3000;
+
+/**
+ * The whole session in a fixed budget: the user's messages (where the intent lives) sampled evenly
+ * from first to last, plus the previous automatic title as an anchor, so a late detour does not
+ * pull the title away from what the session is for.
+ */
+export function titleContext(messages: Message[], previousTitle?: string): string {
+  const clip = (text: string) => {
+    const flat = text.replace(/\s+/g, " ").trim();
+    return flat.length > PER_MESSAGE ? `${flat.slice(0, PER_MESSAGE)}…` : flat;
+  };
+  const prompts = messages.filter((message) => message.role === "user").map((message) => clip(message.text));
+  const keep = Math.max(2, Math.floor(BUDGET / (PER_MESSAGE + 8)));
+  const picked =
+    prompts.length <= keep
+      ? prompts
+      : Array.from({ length: keep }, (_, i) => prompts[Math.round((i * (prompts.length - 1)) / (keep - 1))]);
+  const anchor = previousTitle ? `[현재 제목]\n${previousTitle}\n` : "";
+  const header = `[사용자 메시지: 전체 ${prompts.length}개 중 ${picked.length}개, 시간순]`;
+  return `${anchor}${header}\n${picked.map((text, i) => `${i + 1}. ${text}`).join("\n")}`;
 }
 
 export class TitleStore {
