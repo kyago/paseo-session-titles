@@ -70,4 +70,13 @@ test("titleContext samples user messages across the session with the previous ti
   assert.ok(context.length < 3600);
   assert.ok(titleContext(messages, undefined, 8000).length > context.length, "a larger budget keeps more messages");
   assert.ok(!titleContext(messages.slice(0, 4)).includes("[현재 제목]"));
+  assert.ok(!context.includes("[AI 응답 일부]"), "later turns rely on user messages only");
+  const first = titleContext([
+    { role: "user", text: "이거 봐줘" },
+    { role: "assistant", text: "파일을 확인하겠습니다." },
+    { role: "assistant", text: `결제 웹훅 중복 처리 버그를 고쳤습니다. ${"나".repeat(600)}` },
+  ]);
+  assert.ok(first.includes("[AI 응답 일부]\n결제 웹훅 중복 처리 버그"), "first title sees the AI's last reply");
+  assert.ok(!first.includes("파일을 확인하겠습니다"));
+  assert.ok(first.length < 700);
 });
