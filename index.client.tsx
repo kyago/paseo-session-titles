@@ -1,32 +1,26 @@
-import type { PluginClientContext, PluginSidebarItemProps } from "@getpaseo/plugin/client";
-import { SidebarRow } from "@getpaseo/plugin/client/ui";
-import { SessionsScreen } from "./client/sessions-screen";
-
-const SCREEN_ID = "sessions";
-
-function SessionsItem({ currentScreen, openScreen }: PluginSidebarItemProps) {
-  return (
-    <SidebarRow
-      icon="History"
-      active={currentScreen?.screenId === SCREEN_ID}
-      onPress={() => openScreen({ screenId: SCREEN_ID })}
-    />
-  );
-}
+import type { PluginClientContext } from "@getpaseo/plugin/client";
+import { retitleSession } from "./shared/contracts";
 
 export default function contribute(client: PluginClientContext) {
   const removers = [
-    client.addScreen({ id: SCREEN_ID, title: "세션 찾기", Component: SessionsScreen }),
-    client.addSidebarHeaderItem({ id: "sessions", title: "세션 찾기", Component: SessionsItem }),
-    // The way in on iOS and Android, where sidebar header rows may be hidden.
+    // `/retitle` names the current session now; Paseo shows any error as a toast.
+    client.addSlashCommand({
+      name: "retitle",
+      description: "이 세션 제목을 대화 내용에 맞게 다시 짓기",
+      argumentHint: "",
+      context: "agent",
+      async onSubmit({ agent, rpc }) {
+        await rpc(retitleSession, { agentId: agent.id });
+      },
+    }),
     client.addCommandCenterItem({
-      id: "open-sessions",
-      title: "세션 찾기",
-      icon: "History",
-      keywords: ["session", "history", "archive", "restore", "세션", "복구", "검색"],
-      context: "global",
-      onSelect({ openScreen }) {
-        openScreen({ screenId: SCREEN_ID });
+      id: "retitle-session",
+      title: "세션 제목 다시 짓기",
+      icon: "PenLine",
+      keywords: ["title", "rename", "제목", "이름"],
+      context: "agent",
+      async onSelect({ agent, rpc }) {
+        await rpc(retitleSession, { agentId: agent.id });
       },
     }),
   ];

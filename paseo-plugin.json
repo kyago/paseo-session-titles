@@ -1,11 +1,11 @@
 {
-  "id": "session-finder",
-  "name": "Session Finder",
-  "description": "Search every chat session, closed ones included, restore it in one tap, and keep tab titles matched to each session's purpose.",
+  "id": "session-titles",
+  "name": "Session Titles",
+  "description": "Renames each chat session after its purpose as the conversation goes, so sessions are easy to find with Paseo's own search and history.",
   "translations": {
     "ko": {
-      "name": "세션 찾기",
-      "description": "닫은 세션까지 제목·대화 내용으로 검색해 한 번에 복구하고, 세션 탭 제목을 목적에 맞게 자동으로 바꾼다."
+      "name": "세션 제목 자동화",
+      "description": "대화가 진행되면 세션 탭 제목을 목적에 맞게 자동으로 바꿔, Paseo 기본 검색·기록에서 찾기 쉽게 한다."
     }
   },
   "media": [],
