@@ -1,8 +1,10 @@
 import type { PluginClientContext } from "@getpaseo/plugin/client";
+import { TitleSettingsScreen } from "./client/settings-screen";
 import { retitleSession } from "./shared/contracts";
 
 export default function contribute(client: PluginClientContext) {
   const removers = [
+    client.addSettingsScreen({ id: "titles", title: "제목 자동화", icon: "PenLine", Component: TitleSettingsScreen }),
     // `/retitle` names the current session now; Paseo shows any error as a toast.
     client.addSlashCommand({
       name: "retitle",

@@ -37,20 +37,19 @@ export function onTurn(state: TitleState, currentTitle: string, firstPrompt: str
 }
 
 const PER_MESSAGE = 150;
-const BUDGET = 3000;
 
 /**
  * The whole session in a fixed budget: the user's messages (where the intent lives) sampled evenly
  * from first to last, plus the previous automatic title as an anchor, so a late detour does not
  * pull the title away from what the session is for.
  */
-export function titleContext(messages: Message[], previousTitle?: string): string {
+export function titleContext(messages: Message[], previousTitle?: string, budget = 5000): string {
   const clip = (text: string) => {
     const flat = text.replace(/\s+/g, " ").trim();
     return flat.length > PER_MESSAGE ? `${flat.slice(0, PER_MESSAGE)}…` : flat;
   };
   const prompts = messages.filter((message) => message.role === "user").map((message) => clip(message.text));
-  const keep = Math.max(2, Math.floor(BUDGET / (PER_MESSAGE + 8)));
+  const keep = Math.max(2, Math.floor(budget / (PER_MESSAGE + 8)));
   const picked =
     prompts.length <= keep
       ? prompts

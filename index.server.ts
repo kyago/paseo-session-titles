@@ -6,6 +6,7 @@ import { paseoHome } from "./server/paseo-home.ts";
 import { onTurn, TitleStore, titleContext } from "./server/titles.ts";
 import { type Message, readTranscript, transcriptFiles } from "./server/transcript.ts";
 import { retitleSession } from "./shared/contracts";
+import { titleSettings } from "./shared/settings";
 
 const dataDir = path.join(paseoHome(), "plugin-data");
 const stateFile = path.join(dataDir, "session-titles", "titles.json");
@@ -28,13 +29,21 @@ async function messagesFor(sessionId: string | null | undefined, fallback: Messa
   return file ? await readTranscript(file) : fallback;
 }
 
+let contextChars = 5000;
+
 async function applyTitle(agentId: string, messages: Message[], current: string, previous?: string): Promise<string | null> {
-  const title = await generateTitle(titleContext(messages, previous), previous);
+  const title = await generateTitle(titleContext(messages, previous, contextChars), previous);
   if (title && title !== current) await paseo(["agent", "update", agentId, "--name", title, "--json"]);
   return title;
 }
 
 export default function contribute(server: PluginServerContext) {
+  const settings = server.registerSettings(titleSettings);
+  const apply = (state: Awaited<ReturnType<typeof settings.read>>) => {
+    if (state.status === "ready") contextChars = state.values.contextChars;
+  };
+  void settings.read().then(apply);
+  const stopSettings = settings.subscribe(apply);
   server.handle(retitleSession, async ({ agentId }) => {
     const record = await recordOf(agentId);
     if (!record) throw new Error("세션을 찾지 못했습니다.");
@@ -73,5 +82,6 @@ export default function contribute(server: PluginServerContext) {
 
   return () => {
     unsubscribe();
+    stopSettings();
   };
 }
