@@ -1,0 +1,13 @@
+{
+  "id": "session-finder",
+  "name": "Session Finder",
+  "description": "Search every chat session, closed ones included, restore it in one tap, and keep tab titles matched to each session's purpose.",
+  "translations": {
+    "ko": {
+      "name": "세션 찾기",
+      "description": "닫은 세션까지 제목·대화 내용으로 검색해 한 번에 복구하고, 세션 탭 제목을 목적에 맞게 자동으로 바꾼다."
+    }
+  },
+  "media": [],
+  "requirements": { "paseo": ">=0.12.0" }
+}
