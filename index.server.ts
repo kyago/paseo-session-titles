@@ -1,7 +1,7 @@
 import path from "node:path";
 import type { PluginLifecycleEvents, PluginServerContext } from "@getpaseo/plugin/server";
 import { readAgentRecords } from "./server/agents.ts";
-import { generateTitle, paseo } from "./server/cli.ts";
+import { generateTitle, paseo, type TitleModel } from "./server/cli.ts";
 import { paseoHome } from "./server/paseo-home.ts";
 import { onTurn, TitleStore, titleContext } from "./server/titles.ts";
 import { type Message, readTranscript, transcriptFiles } from "./server/transcript.ts";
@@ -30,10 +30,10 @@ async function messagesFor(sessionId: string | null | undefined, fallback: Messa
 }
 
 let contextChars = 5000;
-let model = "haiku";
+let titleModel: TitleModel = { provider: "claude", model: "" };
 
 async function applyTitle(agentId: string, messages: Message[], current: string, previous?: string): Promise<string | null> {
-  const title = await generateTitle(titleContext(messages, previous, contextChars), previous, model);
+  const title = await generateTitle(titleContext(messages, previous, contextChars), previous, titleModel);
   if (title && title !== current) await paseo(["agent", "update", agentId, "--name", title, "--json"]);
   return title;
 }
@@ -43,7 +43,7 @@ export default function contribute(server: PluginServerContext) {
   const apply = (state: Awaited<ReturnType<typeof settings.read>>) => {
     if (state.status !== "ready") return;
     contextChars = state.values.contextChars;
-    model = state.values.model;
+    titleModel = { provider: state.values.provider, model: state.values.model };
   };
   void settings.read().then(apply);
   const stopSettings = settings.subscribe(apply);

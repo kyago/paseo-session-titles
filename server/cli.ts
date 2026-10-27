@@ -1,6 +1,6 @@
 import { execFile } from "node:child_process";
-import { access, constants } from "node:fs/promises";
-import { homedir } from "node:os";
+import { access, constants, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { homedir, tmpdir } from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
 
@@ -31,6 +31,13 @@ const claudeBin = () =>
     "/opt/homebrew/bin/claude",
     "/usr/local/bin/claude",
   ]);
+const codexBin = () =>
+  firstExecutable([
+    process.env.SESSION_TITLES_CODEX,
+    "/opt/homebrew/bin/codex",
+    "/usr/local/bin/codex",
+    path.join(homedir(), ".local/bin/codex"),
+  ]);
 
 export async function paseo(args: string[]): Promise<string> {
   const { stdout } = await run(await paseoBin(), args, { timeout: 120_000, maxBuffer: 1024 * 1024 });
@@ -53,11 +60,24 @@ const TITLE_SCHEMA = JSON.stringify({
   additionalProperties: false,
 });
 
+/** Which CLI writes the title, and with which model ("" = that CLI's default). */
+export interface TitleModel {
+  provider: "claude" | "codex";
+  model: string;
+}
+
 /**
- * A purpose title from the chosen Claude model (Haiku by default), with no tools, settings, or saved session. With a previous
+ * A purpose title from the chosen CLI, with no tools, settings, or saved session. With a previous
  * title it returns that title unless the session's purpose has moved on.
  */
-export async function generateTitle(context: string, previousTitle?: string, model = "haiku"): Promise<string | null> {
+export async function generateTitle(context: string, previousTitle?: string, using: TitleModel = { provider: "claude", model: "" }): Promise<string | null> {
+  const conversation = `<대화>\n${context}\n</대화>`;
+  const answer = using.provider === "codex" ? await askCodex(conversation, using.model) : await askClaude(conversation, using.model);
+  if (previousTitle && answer?.keep === true) return previousTitle;
+  return typeof answer?.title === "string" ? sanitizeTitle(answer.title) : null;
+}
+
+async function askClaude(conversation: string, model: string): Promise<any> {
   const { stdout } = await run(
     await claudeBin(),
     [
@@ -71,18 +91,60 @@ export async function generateTitle(context: string, previousTitle?: string, mod
       "--system-prompt",
       TITLE_PROMPT,
       "--model",
-      model,
+      model || "haiku",
       "--output-format",
       "json",
       "--json-schema",
       TITLE_SCHEMA,
-      `<대화>\n${context}\n</대화>`,
+      conversation,
     ],
     { timeout: 60_000, maxBuffer: 1024 * 1024 },
   );
-  const answer = JSON.parse(stdout)?.structured_output;
-  if (previousTitle && answer?.keep === true) return previousTitle;
-  return typeof answer?.title === "string" ? sanitizeTitle(answer.title) : null;
+  return JSON.parse(stdout)?.structured_output;
+}
+
+/**
+ * Codex has no system prompt or tool switch, so the rules lead the prompt and it runs read-only in an
+ * empty directory, without saving the session or loading the user's config (MCP servers, hooks).
+ */
+async function askCodex(conversation: string, model: string): Promise<any> {
+  const dir = await mkdtemp(path.join(tmpdir(), "session-titles-"));
+  try {
+    const schema = path.join(dir, "schema.json");
+    const answer = path.join(dir, "answer.json");
+    await writeFile(schema, TITLE_SCHEMA);
+    const codex = run(
+      await codexBin(),
+      [
+        "exec",
+        "--ephemeral",
+        "--skip-git-repo-check",
+        "--ignore-user-config",
+        "--ignore-rules",
+        "--sandbox",
+        "read-only",
+        "--color",
+        "never",
+        "-C",
+        dir,
+        "-c",
+        'model_reasoning_effort="low"',
+        ...(model ? ["-m", model] : []),
+        "--output-schema",
+        schema,
+        "-o",
+        answer,
+        `${TITLE_PROMPT}\n\n${conversation}`,
+      ],
+      { timeout: 120_000, maxBuffer: 4 * 1024 * 1024 },
+    );
+    // With stdin left open, `codex exec` waits to append it to the prompt.
+    codex.child.stdin?.end();
+    await codex;
+    return JSON.parse(await readFile(answer, "utf8"));
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
 }
 
 export function sanitizeTitle(raw: string): string | null {
