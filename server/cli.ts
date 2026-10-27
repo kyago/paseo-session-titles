@@ -54,10 +54,10 @@ const TITLE_SCHEMA = JSON.stringify({
 });
 
 /**
- * A purpose title from Claude Haiku, with no tools, settings, or saved session. With a previous
+ * A purpose title from the chosen Claude model (Haiku by default), with no tools, settings, or saved session. With a previous
  * title it returns that title unless the session's purpose has moved on.
  */
-export async function generateTitle(context: string, previousTitle?: string): Promise<string | null> {
+export async function generateTitle(context: string, previousTitle?: string, model = "haiku"): Promise<string | null> {
   const { stdout } = await run(
     await claudeBin(),
     [
@@ -71,7 +71,7 @@ export async function generateTitle(context: string, previousTitle?: string): Pr
       "--system-prompt",
       TITLE_PROMPT,
       "--model",
-      "haiku",
+      model,
       "--output-format",
       "json",
       "--json-schema",

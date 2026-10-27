@@ -30,9 +30,10 @@ async function messagesFor(sessionId: string | null | undefined, fallback: Messa
 }
 
 let contextChars = 5000;
+let model = "haiku";
 
 async function applyTitle(agentId: string, messages: Message[], current: string, previous?: string): Promise<string | null> {
-  const title = await generateTitle(titleContext(messages, previous, contextChars), previous);
+  const title = await generateTitle(titleContext(messages, previous, contextChars), previous, model);
   if (title && title !== current) await paseo(["agent", "update", agentId, "--name", title, "--json"]);
   return title;
 }
@@ -40,7 +41,9 @@ async function applyTitle(agentId: string, messages: Message[], current: string,
 export default function contribute(server: PluginServerContext) {
   const settings = server.registerSettings(titleSettings);
   const apply = (state: Awaited<ReturnType<typeof settings.read>>) => {
-    if (state.status === "ready") contextChars = state.values.contextChars;
+    if (state.status !== "ready") return;
+    contextChars = state.values.contextChars;
+    model = state.values.model;
   };
   void settings.read().then(apply);
   const stopSettings = settings.subscribe(apply);
