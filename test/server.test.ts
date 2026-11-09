@@ -53,7 +53,7 @@ test("sanitizeTitle trims model chatter", () => {
   assert.equal(sanitizeTitle('"로그인 리다이렉트 오류 수정".\n설명'), "로그인 리다이렉트 오류 수정");
   assert.equal(sanitizeTitle("제목: 청약 알림"), "청약 알림");
   assert.equal(sanitizeTitle("  "), null);
-  assert.equal(sanitizeTitle("가".repeat(40))?.length, 30);
+  assert.equal(sanitizeTitle("가".repeat(40)), "가".repeat(40));
 });
 
 test("titleContext samples user messages across the session with the previous title", async () => {
